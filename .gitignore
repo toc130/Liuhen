@@ -38,3 +38,4 @@ var/
 # 系统相关
 .DS_Store
 Thumbs.db 
+data/records.json
