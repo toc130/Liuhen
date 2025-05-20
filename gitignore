@@ -1,0 +1,40 @@
+# 留痕软件 .gitignore 规则
+
+# 忽略数据目录
+/data/
+/data/screenshots/
+
+# 忽略日志目录
+/logs/
+
+# Python相关忽略规则
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统相关
+.DS_Store
+Thumbs.db 
