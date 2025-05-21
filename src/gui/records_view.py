@@ -8,7 +8,11 @@ import os
 from datetime import datetime
 from PIL import Image, ImageTk
 
-from src.config import UI_FONT_BOLD, UI_FONT_NORMAL, TABLE_COLUMNS, SCREENSHOT_DIR
+from src.config import (
+    UI_FONT_BOLD, UI_FONT_NORMAL, TABLE_COLUMNS, SCREENSHOT_DIR,
+    COLOR_PRIMARY, COLOR_BACKGROUND, COLOR_NEUTRAL, 
+    DARK_COLOR_PRIMARY, DARK_COLOR_BACKGROUND, DARK_COLOR_NEUTRAL
+)
 from src.utils.data_manager import DataManager
 from src.utils.screenshot import load_image_from_path
 
@@ -25,7 +29,7 @@ class RecordsView:
             parent: 父窗口
         """
         self.parent = parent
-        self.window = tk.Toplevel(parent)
+        self.window = tk.Toplevel(parent.root if hasattr(parent, 'root') else parent)
         self.window.title("查询记录")
         self.window.geometry("900x600")
         self.window.minsize(800, 500)
@@ -34,7 +38,22 @@ class RecordsView:
         self.window.grab_set()           # 保持模态
         self.window.resizable(True, True)
         self.center_window(900, 600)
-        self.window.configure(bg="#fafbfc")
+        
+        # 继承父窗口的主题设置
+        self.is_dark_mode = False
+        if hasattr(parent, 'is_dark_mode'):
+            self.is_dark_mode = parent.is_dark_mode
+            
+        # 获取主题颜色
+        self.theme_colors = self.get_theme_colors()
+        
+        # 设置窗口背景色
+        self.window.configure(bg=self.theme_colors["background"])
+        
+        # 在窗口中存储对自身的引用，方便主窗口访问
+        self.window._records_view = self
+        
+        # 设置样式
         self._setup_styles()
         
         # 当前选中的记录
@@ -48,17 +67,120 @@ class RecordsView:
         # 加载记录
         self._load_records()
     
+    def get_theme_colors(self):
+        """获取当前主题颜色"""
+        if self.is_dark_mode:
+            return {
+                "background": DARK_COLOR_BACKGROUND,
+                "text": DARK_COLOR_NEUTRAL,
+                "secondary_text": "#aaaaaa",
+                "button_bg": "#333350",  
+                "button_active": "#444470",
+                "treeview_bg": "#252540",
+                "treeview_selected_bg": "#3a3a5e",
+                "treeview_selected_fg": "#ffffff",
+                "entry_bg": "#333350",
+                "entry_fg": "#ffffff",
+                "preview_bg": "#2d2d44",
+                "border": "#444444"
+            }
+        else:
+            return {
+                "background": COLOR_BACKGROUND,
+                "text": COLOR_NEUTRAL,
+                "secondary_text": "#888888",
+                "button_bg": "#f0f0f0",
+                "button_active": "#e0e0e0",
+                "treeview_bg": "#ffffff",
+                "treeview_selected_bg": "#e6f7ff",
+                "treeview_selected_fg": "#222222",
+                "entry_bg": "#ffffff",
+                "entry_fg": "#333333",
+                "preview_bg": "#f9f9f9",
+                "border": "#dddddd"
+            }
+    
     def _setup_styles(self):
         style = ttk.Style(self.window)
         style.theme_use('clam')
-        style.configure("TFrame", background="#fafbfc")
-        style.configure("TLabelframe", background="#fafbfc", font=("微软雅黑", 12, "bold"), padding=12)
-        style.configure("TLabelframe.Label", background="#fafbfc", font=("微软雅黑", 12, "bold"))
-        style.configure("TLabel", background="#fafbfc", font=("微软雅黑", 12))
-        style.configure("TButton", font=("微软雅黑", 12), padding=8)
-        style.configure("Treeview", font=("微软雅黑", 14), rowheight=40, fieldbackground="#fff", background="#fff")
-        style.configure("Treeview.Heading", font=("微软雅黑", 14, "bold"), background="#f0f0f0")
-        style.map("Treeview", background=[('selected', '#e6f7ff')], foreground=[('selected', '#222')])
+        
+        # 配置Frame样式
+        style.configure("TFrame", background=self.theme_colors["background"])
+        
+        # 配置LabelFrame样式
+        style.configure("TLabelframe", 
+                      background=self.theme_colors["background"], 
+                      font=("微软雅黑", 12, "bold"), 
+                      padding=12)
+        
+        style.configure("TLabelframe.Label", 
+                      background=self.theme_colors["background"], 
+                      foreground=self.theme_colors["text"],
+                      font=("微软雅黑", 12, "bold"))
+        
+        # 配置Label样式
+        style.configure("TLabel", 
+                      background=self.theme_colors["background"], 
+                      foreground=self.theme_colors["text"],
+                      font=("微软雅黑", 12))
+        
+        # 配置按钮样式
+        style.configure("TButton", 
+                      font=("微软雅黑", 12), 
+                      padding=8,
+                      background=self.theme_colors["button_bg"],
+                      foreground=self.theme_colors["text"])
+        
+        style.map("TButton",
+                background=[('active', self.theme_colors["button_active"])],
+                foreground=[('active', self.theme_colors["text"])])
+        
+        # 配置Entry样式
+        style.configure('TEntry', 
+                      padding=5,
+                      fieldbackground=self.theme_colors["entry_bg"],
+                      foreground=self.theme_colors["entry_fg"])
+        
+        # 分隔线样式
+        style.configure("TSeparator", 
+                      background="#ddd" if not self.is_dark_mode else "#444")
+        
+        # 配置Treeview样式
+        style.configure("Treeview", 
+                      font=("微软雅黑", 14), 
+                      rowheight=40, 
+                      fieldbackground=self.theme_colors["treeview_bg"], 
+                      background=self.theme_colors["treeview_bg"],
+                      foreground=self.theme_colors["text"])
+        
+        # 设置表头样式
+        style.configure("Treeview.Heading", 
+                      font=("微软雅黑", 14, "bold"), 
+                      background=self.theme_colors["button_bg"],
+                      foreground=self.theme_colors["text"],
+                      relief="raised",
+                      padding=5)
+        
+        # 设置选中行样式
+        style.map("Treeview", 
+                background=[('selected', self.theme_colors["treeview_selected_bg"])], 
+                foreground=[('selected', self.theme_colors["treeview_selected_fg"])])
+        
+        # 设置预览标签样式
+        style.configure("Preview.TLabel",
+                      background=self.theme_colors["preview_bg"],
+                      foreground=self.theme_colors["secondary_text"],
+                      font=("微软雅黑", 14),
+                      padding=15,
+                      borderwidth=2,
+                      relief="groove")
+        
+        # 设置滚动条样式
+        style.configure("Vertical.TScrollbar", 
+                      background=self.theme_colors["button_bg"],
+                      troughcolor=self.theme_colors["background"],
+                      bordercolor=self.theme_colors["border"],
+                      arrowcolor=self.theme_colors["text"])
     
     def center_window(self, width, height):
         sw = self.window.winfo_screenwidth()
@@ -71,39 +193,81 @@ class RecordsView:
         """创建界面组件"""
         main_frame = ttk.Frame(self.window, padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
+        
         # 筛选区
         filter_frame = ttk.Frame(main_frame)
-        filter_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(filter_frame, text="关键词:").pack(side=tk.LEFT)
-        self.filter_entry = ttk.Entry(filter_frame, width=20)
-        self.filter_entry.pack(side=tk.LEFT, padx=5)
-        ttk.Label(filter_frame, text="开始日期:").pack(side=tk.LEFT, padx=(10, 0))
-        self.filter_start = ttk.Entry(filter_frame, width=12)
-        self.filter_start.pack(side=tk.LEFT, padx=5)
-        ttk.Label(filter_frame, text="结束日期:").pack(side=tk.LEFT, padx=(10, 0))
-        self.filter_end = ttk.Entry(filter_frame, width=12)
-        self.filter_end.pack(side=tk.LEFT, padx=5)
-        filter_btn = ttk.Button(filter_frame, text="筛选", command=self._filter_records)
-        filter_btn.pack(side=tk.LEFT, padx=10)
-        export_btn = ttk.Button(filter_frame, text="导出CSV", command=self._export_csv)
-        export_btn.pack(side=tk.RIGHT, padx=10)
+        filter_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        # 添加明显的标题
+        header_frame = ttk.Frame(filter_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 15))
+        ttk.Label(
+            header_frame, 
+            text="查询记录", 
+            font=("微软雅黑", 16, "bold"),
+            foreground=self.theme_colors["text"]
+        ).pack(side=tk.LEFT)
+        
+        # 筛选控件区域
+        controls_frame = ttk.Frame(filter_frame)
+        controls_frame.pack(fill=tk.X)
+        
+        # 使用Grid布局，让控件对齐
+        ttk.Label(controls_frame, text="关键词:").grid(row=0, column=0, sticky="e", padx=(0, 5), pady=5)
+        self.filter_entry = ttk.Entry(controls_frame, width=20)
+        self.filter_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        
+        ttk.Label(controls_frame, text="开始日期:").grid(row=0, column=2, sticky="e", padx=(15, 5), pady=5)
+        self.filter_start = ttk.Entry(controls_frame, width=12)
+        self.filter_start.grid(row=0, column=3, sticky="ew", padx=5, pady=5)
+        
+        ttk.Label(controls_frame, text="结束日期:").grid(row=0, column=4, sticky="e", padx=(15, 5), pady=5)
+        self.filter_end = ttk.Entry(controls_frame, width=12)
+        self.filter_end.grid(row=0, column=5, sticky="ew", padx=5, pady=5)
+        
+        # 按钮区域
+        button_frame = ttk.Frame(controls_frame)
+        button_frame.grid(row=0, column=6, columnspan=2, padx=15, pady=5, sticky="e")
+        
+        filter_btn = ttk.Button(button_frame, text="筛选", command=self._filter_records, width=8)
+        filter_btn.pack(side=tk.LEFT, padx=5)
+        
+        export_btn = ttk.Button(button_frame, text="导出CSV", command=self._export_csv, width=10)
+        export_btn.pack(side=tk.LEFT, padx=5)
+        
+        # 设置权重，使右侧空间更大
+        controls_frame.columnconfigure(1, weight=1)
+        controls_frame.columnconfigure(3, weight=1)
+        controls_frame.columnconfigure(5, weight=1)
+        controls_frame.columnconfigure(6, weight=2)
+        
         # 主体区
         paned_window = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
         paned_window.pack(fill=tk.BOTH, expand=True, pady=10)
-        list_frame = ttk.Frame(paned_window, padding=10)
+        
+        list_frame = ttk.Frame(paned_window, padding=5)
         paned_window.add(list_frame, weight=1)
-        details_frame = ttk.Frame(paned_window, padding=10)
+        
+        details_frame = ttk.Frame(paned_window, padding=5)
         paned_window.add(details_frame, weight=2)
+        
         self._create_records_list(list_frame)
+        
+        # 分隔线
         sep = ttk.Separator(main_frame, orient=tk.HORIZONTAL)
         sep.pack(fill=tk.X, pady=8)
+        
         self._create_details_view(details_frame)
+        
+        # 底部按钮区
         button_frame = ttk.Frame(main_frame, padding=10)
         button_frame.pack(fill=tk.X, pady=(10, 0))
-        refresh_btn = ttk.Button(button_frame, text="刷新", command=self._load_records)
-        refresh_btn.pack(side=tk.LEFT, padx=10, ipadx=10, ipady=5)
-        close_btn = ttk.Button(button_frame, text="关闭", command=self.window.destroy)
-        close_btn.pack(side=tk.RIGHT, padx=10, ipadx=10, ipady=5)
+        
+        refresh_btn = ttk.Button(button_frame, text="刷新", command=self._load_records, width=8)
+        refresh_btn.pack(side=tk.LEFT, padx=10)
+        
+        close_btn = ttk.Button(button_frame, text="关闭", command=self.window.destroy, width=8)
+        close_btn.pack(side=tk.RIGHT, padx=10)
     
     def _create_records_list(self, parent):
         """创建记录列表
@@ -112,11 +276,15 @@ class RecordsView:
             parent: 父容器
         """
         # 列表标题
-        ttk.Label(parent, text="历史记录", font=("微软雅黑", 13, "bold"), background="#fafbfc").pack(anchor=tk.W, pady=(0, 10))
+        ttk.Label(parent, text="历史记录", font=("微软雅黑", 13, "bold")).pack(anchor=tk.W, pady=(0, 10))
+        
+        # 创建表格容器框架
+        table_frame = ttk.Frame(parent)
+        table_frame.pack(fill=tk.BOTH, expand=True)
         
         # 创建表格
         columns = [col["id"] for col in TABLE_COLUMNS]
-        self.tree = ttk.Treeview(parent, columns=columns, show="headings", height=12)
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=12)
         
         # 设置列标题和宽度
         for col in TABLE_COLUMNS:
@@ -124,16 +292,28 @@ class RecordsView:
             anchor = "center" if col["id"] == "id" else "w"
             self.tree.column(col["id"], width=col["width"]+40, anchor=anchor, minwidth=col["width"]+40)
         
-        # 添加滚动条
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        # 添加垂直滚动条
+        y_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview, style="Vertical.TScrollbar")
+        self.tree.configure(yscrollcommand=y_scrollbar.set)
+        
+        # 添加水平滚动条
+        x_scrollbar = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview, style="Vertical.TScrollbar")
+        self.tree.configure(xscrollcommand=x_scrollbar.set)
         
         # 布局
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        y_scrollbar.grid(row=0, column=1, sticky="ns")
+        x_scrollbar.grid(row=1, column=0, sticky="ew")
+        
+        # 配置表格容器的网格权重
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
         
         # 绑定选择事件
         self.tree.bind("<<TreeviewSelect>>", self._on_record_select)
+        
+        # 绑定双击事件（可选：双击行快速编辑）
+        self.tree.bind("<Double-1>", self._on_row_double_click)
     
     def _create_details_view(self, parent):
         """创建详情视图
@@ -142,7 +322,7 @@ class RecordsView:
             parent: 父容器
         """
         # 详情标题
-        ttk.Label(parent, text="记录详情", font=("微软雅黑", 13, "bold"), background="#fafbfc").pack(anchor=tk.W, pady=(0, 10))
+        ttk.Label(parent, text="记录详情", font=("微软雅黑", 13, "bold")).pack(anchor=tk.W, pady=(0, 10))
         
         # 编辑区域
         edit_frame = ttk.Frame(parent)
@@ -175,41 +355,26 @@ class RecordsView:
         self.updated_label.pack(side=tk.LEFT, padx=10)
         
         # 图片预览
-        preview_frame = ttk.LabelFrame(parent, text="截图预览", padding=20, style="TLabelframe")
+        preview_frame = ttk.LabelFrame(parent, text="截图预览", padding=20)
         preview_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        self.preview_label = ttk.Label(preview_frame, borderwidth=2, relief="groove", anchor="center", background="#fff")
-        self.preview_label.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-    
-    def _load_records(self):
-        """加载记录列表"""
-        # 清空现有记录
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # 增强预览区显示效果
+        preview_container = ttk.Frame(preview_frame, padding=5)
+        preview_container.pack(fill=tk.BOTH, expand=True)
         
-        # 获取所有记录
-        records = data_manager.get_all_records()
+        # 为预览区设置更明显的边框
+        self.preview_label = ttk.Label(
+            preview_container, 
+            borderwidth=2, 
+            relief="groove", 
+            anchor="center", 
+            style="Preview.TLabel"
+        )
+        self.preview_label.pack(fill=tk.BOTH, expand=True)
         
-        # 按时间倒序排序
-        records.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        # 添加到表格
-        for record in records:
-            # 格式化时间
-            timestamp = record.get('timestamp', '')
-            try:
-                dt = datetime.fromisoformat(timestamp)
-                formatted_time = dt.strftime('%Y-%m-%d %H:%M')
-            except (ValueError, TypeError):
-                formatted_time = timestamp
-            
-            values = [
-                record.get('id', ''),
-                record.get('task_name', ''),
-                formatted_time
-            ]
-            
-            self.tree.insert('', tk.END, values=values, tags=(str(record.get('id')),))
+        # 添加空预览提示
+        self.empty_preview_text = "选择记录以查看截图"
+        self.preview_label.config(text=self.empty_preview_text)
     
     def _on_record_select(self, event):
         """记录选择事件处理
@@ -271,19 +436,26 @@ class RecordsView:
                     self.current_image = load_image_from_path(path)
                     if self.current_image:
                         # 获取预览区域的大小
-                        preview_width = self.preview_label.winfo_width() or 400
-                        preview_height = self.preview_label.winfo_height() or 300
+                        preview_width = self.preview_label.winfo_width() - 30  # 考虑内边距
+                        preview_height = self.preview_label.winfo_height() - 30
+                        
+                        # 如果尺寸太小，使用默认值
+                        if preview_width < 100 or preview_height < 100:
+                            preview_width = 600
+                            preview_height = 400
+                            
+                        # 保持纵横比缩放图片
+                        img_width, img_height = self.current_image.size
+                        ratio = min(preview_width/img_width, preview_height/img_height)
+                        new_width = int(img_width * ratio)
+                        new_height = int(img_height * ratio)
                         
                         # 调整图片大小并创建预览
-                        self.image_preview = ImageTk.PhotoImage(
-                            self.current_image.resize(
-                                (min(preview_width, self.current_image.width), 
-                                min(preview_height, self.current_image.height)),
-                                Image.LANCZOS
-                            )
-                        )
-                        # 更新预览
-                        self.preview_label.config(image=self.image_preview)
+                        resized_img = self.current_image.resize((new_width, new_height), Image.LANCZOS)
+                        self.image_preview = ImageTk.PhotoImage(resized_img)
+                        
+                        # 更新预览，清除文本
+                        self.preview_label.config(image=self.image_preview, text="")
                         image_loaded = True
                         break
                 except Exception as e:
@@ -293,7 +465,7 @@ class RecordsView:
             print(f"无法找到或加载图片: {image_path}")
             self.current_image = None
             self.image_preview = None
-            self.preview_label.config(image="")
+            self.preview_label.config(image="", text="图片加载失败")
         
         # 启用按钮
         self.save_btn.config(state="normal")
@@ -349,7 +521,7 @@ class RecordsView:
         self.task_entry.delete(0, tk.END)
         self.created_label.config(text="")
         self.updated_label.config(text="")
-        self.preview_label.config(image="")
+        self.preview_label.config(image="", text=self.empty_preview_text)
         self.current_image = None
         self.image_preview = None
         
@@ -357,25 +529,74 @@ class RecordsView:
         self.save_btn.config(state="disabled")
         self.delete_btn.config(state="disabled")
 
-    def _filter_records(self):
-        keyword = self.filter_entry.get().strip()
-        date_from = self.filter_start.get().strip()
-        date_to = self.filter_end.get().strip()
-        records = data_manager.search_records(keyword, date_from, date_to)
+    def _load_records(self):
+        """加载记录列表"""
         # 清空现有记录
         for item in self.tree.get_children():
             self.tree.delete(item)
+        
+        # 获取所有记录
+        records = data_manager.get_all_records()
+        
         # 按时间倒序排序
         records.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        for record in records:
+        
+        # 添加到表格（设置交替行的tag）
+        for i, record in enumerate(records):
+            # 格式化时间
             timestamp = record.get('timestamp', '')
             try:
                 dt = datetime.fromisoformat(timestamp)
                 formatted_time = dt.strftime('%Y-%m-%d %H:%M')
             except (ValueError, TypeError):
                 formatted_time = timestamp
+            
+            values = [
+                record.get('id', ''),
+                record.get('task_name', ''),
+                formatted_time
+            ]
+            
+            # 设置交替行的tag
+            tag = "even" if i % 2 == 0 else "odd"
+            self.tree.insert('', tk.END, values=values, tags=(str(record.get('id')), tag))
+        
+        # 配置交替行的颜色
+        if self.is_dark_mode:
+            self.tree.tag_configure("even", background="#252540")
+            self.tree.tag_configure("odd", background="#2a2a45")
+        else:
+            self.tree.tag_configure("even", background="#f9f9f9")
+            self.tree.tag_configure("odd", background="#ffffff")
+
+    def _filter_records(self):
+        """筛选记录"""
+        keyword = self.filter_entry.get().strip()
+        date_from = self.filter_start.get().strip()
+        date_to = self.filter_end.get().strip()
+        records = data_manager.search_records(keyword, date_from, date_to)
+        
+        # 清空现有记录
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+            
+        # 按时间倒序排序
+        records.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        # 添加到表格（设置交替行的tag）
+        for i, record in enumerate(records):
+            timestamp = record.get('timestamp', '')
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+            except (ValueError, TypeError):
+                formatted_time = timestamp
+                
             values = [record.get('id', ''), record.get('task_name', ''), formatted_time]
-            self.tree.insert('', tk.END, values=values, tags=(str(record.get('id')),))
+            
+            # 设置交替行的tag
+            tag = "even" if i % 2 == 0 else "odd"
+            self.tree.insert('', tk.END, values=values, tags=(str(record.get('id')), tag))
 
     def _export_csv(self):
         import csv
@@ -401,3 +622,46 @@ class RecordsView:
                 row = self.tree.item(item, 'values')
                 writer.writerow(row)
         messagebox.showinfo("导出", f"已导出到 {file_path}")
+
+    def _on_row_double_click(self, event):
+        """双击行事件处理，可以考虑添加快速编辑功能"""
+        # 目前只实现与单击相同的功能，可以根据需要扩展
+        self._on_record_select(event)
+
+    def _update_theme(self, is_dark_mode=None):
+        """更新界面主题
+        
+        Args:
+            is_dark_mode: 是否深色模式，None表示使用父窗口的设置
+        """
+        if is_dark_mode is not None:
+            self.is_dark_mode = is_dark_mode
+        elif hasattr(self.parent, 'is_dark_mode'):
+            self.is_dark_mode = self.parent.is_dark_mode
+            
+        # 获取新的主题颜色
+        self.theme_colors = self.get_theme_colors()
+        
+        # 更新窗口背景色
+        self.window.configure(bg=self.theme_colors["background"])
+        
+        # 重新设置样式
+        self._setup_styles()
+        
+        # 更新交替行的颜色
+        if self.is_dark_mode:
+            self.tree.tag_configure("even", background="#252540")
+            self.tree.tag_configure("odd", background="#2a2a45")
+        else:
+            self.tree.tag_configure("even", background="#f9f9f9")
+            self.tree.tag_configure("odd", background="#ffffff")
+        
+        # 更新预览标签背景色
+        if hasattr(self, 'preview_label'):
+            if self.preview_label.cget("image") == "":
+                # 如果没有图像，更新文本颜色
+                self.preview_label.config(
+                    background=self.theme_colors["preview_bg"],
+                    foreground=self.theme_colors["secondary_text"],
+                    text=self.empty_preview_text
+                )

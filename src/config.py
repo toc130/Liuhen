@@ -22,7 +22,7 @@ def ensure_dirs():
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-# 颜色配置
+# 浅色主题颜色配置
 COLOR_PRIMARY = "#3498db"     # 主要颜色
 COLOR_SUCCESS = "#2ecc71"     # 成功/确认颜色
 COLOR_WARNING = "#f39c12"     # 警告颜色
@@ -30,6 +30,15 @@ COLOR_DANGER = "#e74c3c"      # 危险/错误颜色
 COLOR_NEUTRAL = "#34495e"     # 中性色
 COLOR_BACKGROUND = "#f5f5f7"  # 背景色
 COLOR_PREVIEW_BG = "#f9f9f9"  # 预览区背景色
+
+# 深色主题颜色配置
+DARK_COLOR_PRIMARY = "#3498db"     # 主要颜色 (亮蓝色)
+DARK_COLOR_SUCCESS = "#2ecc71"     # 成功/确认颜色 (亮绿色)
+DARK_COLOR_WARNING = "#f39c12"     # 警告颜色 (亮橙色)
+DARK_COLOR_DANGER = "#e74c3c"      # 危险/错误颜色 (亮红色)
+DARK_COLOR_NEUTRAL = "#ecf0f1"     # 中性色 (浅灰白文本)
+DARK_COLOR_BACKGROUND = "#1a1a2e"  # 背景色 (深蓝黑色)
+DARK_COLOR_PREVIEW_BG = "#2a2a42"  # 预览区背景色 (深紫蓝色)
 
 # UI配置
 UI_FONT = "微软雅黑"

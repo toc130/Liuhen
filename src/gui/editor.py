@@ -4,11 +4,25 @@ from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
 import math
 
+from src.config import (
+    COLOR_BACKGROUND, COLOR_NEUTRAL, COLOR_PRIMARY,
+    DARK_COLOR_BACKGROUND, DARK_COLOR_NEUTRAL, DARK_COLOR_PRIMARY,
+    UI_FONT_BOLD, UI_FONT_NORMAL, UI_FONT_TITLE, UI_FONT_LARGE, UI_FONT_SMALL
+)
+
 class ScreenshotEditor(tk.Toplevel):
-    def __init__(self, parent, image):
+    def __init__(self, parent, image, is_dark_mode=False):
         super().__init__(parent)
         self.title("截图编辑器 - 标注并保存")
-        self.configure(bg="#f0f0f0")  # 设置窗口背景色
+        
+        # 主题设置
+        self.is_dark_mode = is_dark_mode
+        if hasattr(parent, 'is_dark_mode'):
+            self.is_dark_mode = parent.is_dark_mode
+            
+        self.theme_colors = self.get_theme_colors()
+        
+        self.configure(bg=self.theme_colors["background"])  # 设置窗口背景色
         
         # 动态获取屏幕分辨率和按钮区宽高
         screen_w = self.winfo_screenwidth()
@@ -47,20 +61,20 @@ class ScreenshotEditor(tk.Toplevel):
         self.create_styles()
         
         # 创建左侧工具区（竖直工具栏）
-        tools_panel = tk.Frame(self, bg="#f5f5f7", bd=0, highlightthickness=1, highlightbackground="#ddd")
+        tools_panel = tk.Frame(self, bg=self.theme_colors["panel_bg"], bd=0, highlightthickness=1, highlightbackground=self.theme_colors["border"])
         tools_panel.pack(side=tk.LEFT, fill=tk.Y, padx=0, pady=0)
         
         # 添加标题和版本信息
-        title_frame = tk.Frame(tools_panel, bg="#f5f5f7", height=50)
+        title_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"], height=50)
         title_frame.pack(side=tk.TOP, fill=tk.X)
-        ttk.Label(title_frame, text="截图编辑器", font=("微软雅黑", 13, "bold"), foreground="#333333", background="#f5f5f7").pack(side=tk.TOP, pady=(12, 0))
-        ttk.Label(title_frame, text="v1.0", font=("微软雅黑", 8), foreground="#888888", background="#f5f5f7").pack(side=tk.TOP, pady=(0, 10))
+        ttk.Label(title_frame, text="截图编辑器", font=UI_FONT_TITLE, foreground=self.theme_colors["text"], background=self.theme_colors["panel_bg"]).pack(side=tk.TOP, pady=(12, 0))
+        ttk.Label(title_frame, text="v1.0", font=UI_FONT_SMALL, foreground=self.theme_colors["secondary_text"], background=self.theme_colors["panel_bg"]).pack(side=tk.TOP, pady=(0, 10))
         
-        # 工具标签
+        # 添加工具标签
         ttk.Label(tools_panel, text="编辑工具", font=("微软雅黑", 11, "bold"), style="Section.TLabel").pack(side=tk.TOP, pady=(5, 8), padx=12, anchor='w')
         
         # 工具按钮容器
-        tools_frame = tk.Frame(tools_panel, bg="#f5f5f7", padx=5)
+        tools_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"], padx=5)
         tools_frame.pack(side=tk.TOP, fill=tk.X, padx=5)
         
         self.tool_var = tk.StringVar(value='rect')
@@ -77,7 +91,7 @@ class ScreenshotEditor(tk.Toplevel):
         # 创建工具按钮网格布局
         for i, (tool, text, icon) in enumerate(tool_info):
             row, col = i // 2, i % 2
-            btn_frame = tk.Frame(tools_frame, bg="#f5f5f7")
+            btn_frame = tk.Frame(tools_frame, bg=self.theme_colors["panel_bg"])
             btn_frame.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
             
             btn = ttk.Radiobutton(
@@ -103,36 +117,57 @@ class ScreenshotEditor(tk.Toplevel):
         ttk.Label(tools_panel, text="样式设置", font=("微软雅黑", 11, "bold"), style="Section.TLabel").pack(side=tk.TOP, pady=(0, 8), padx=12, anchor='w')
         
         # 色彩区域
-        color_frame = tk.Frame(tools_panel, bg="#f5f5f7")
+        color_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"])
         color_frame.pack(side=tk.TOP, fill=tk.X, padx=12, pady=4)
         
         # 预设颜色选择
         ttk.Label(color_frame, text="颜色：", font=("微软雅黑", 10), style="Option.TLabel").grid(row=0, column=0, sticky='w', pady=2)
-        colors_frame = tk.Frame(color_frame, bg="#f5f5f7")
+        colors_frame = tk.Frame(color_frame, bg=self.theme_colors["panel_bg"])
         colors_frame.grid(row=0, column=1, sticky='w')
         
-        # 常用颜色预设
-        preset_colors = ['#FF4136', '#0074D9', '#2ECC40', '#FF851B', '#B10DC9', '#111111']
-        for i, color in enumerate(preset_colors):
-            color_btn = tk.Canvas(colors_frame, width=16, height=16, bg=color, cursor="hand2", highlightthickness=1, highlightbackground="#ddd")
+        # 常用颜色预设 - 增加更多高对比度颜色
+        preset_colors = [
+            '#FF4136',  # 亮红色
+            '#0074D9',  # 亮蓝色
+            '#2ECC40',  # 亮绿色
+            '#FFDC00',  # 亮黄色
+            '#FF851B',  # 橙色
+            '#F012BE',  # 亮粉色
+            '#B10DC9',  # 紫色
+            '#FFFFFF',  # 白色
+        ]
+        
+        # 第二行颜色
+        row1_colors = preset_colors[:4]  # 第一行4种颜色
+        row2_colors = preset_colors[4:]  # 第二行4种颜色
+        
+        # 创建第一行颜色按钮
+        for i, color in enumerate(row1_colors):
+            color_btn = tk.Canvas(colors_frame, width=16, height=16, bg=color, cursor="hand2", highlightthickness=1, highlightbackground=self.theme_colors["border"])
             color_btn.grid(row=0, column=i, padx=2)
+            color_btn.bind('<Button-1>', lambda e, c=color: self.select_preset_color(c))
+        
+        # 创建第二行颜色按钮
+        for i, color in enumerate(row2_colors):
+            color_btn = tk.Canvas(colors_frame, width=16, height=16, bg=color, cursor="hand2", highlightthickness=1, highlightbackground=self.theme_colors["border"])
+            color_btn.grid(row=1, column=i, padx=2, pady=2)
             color_btn.bind('<Button-1>', lambda e, c=color: self.select_preset_color(c))
         
         # 自定义颜色按钮
         self.color_btn = ttk.Button(color_frame, text="自定义...", command=self.choose_color, style="Small.TButton", width=8)
-        self.color_btn.grid(row=0, column=len(preset_colors)+1, padx=(5, 0))
+        self.color_btn.grid(row=0, column=len(row1_colors)+1, rowspan=2, padx=(5, 0))
         
         # 当前颜色预览
-        preview_frame = tk.Frame(color_frame, bg="#f5f5f7")
+        preview_frame = tk.Frame(color_frame, bg=self.theme_colors["panel_bg"])
         preview_frame.grid(row=1, column=0, columnspan=2, sticky='w', pady=(5, 0))
         ttk.Label(preview_frame, text="当前：", font=("微软雅黑", 10), style="Option.TLabel").pack(side=tk.LEFT)
-        self.color_preview = tk.Canvas(preview_frame, width=24, height=24, bg=self.current_color, highlightthickness=1, highlightbackground="#ddd")
+        self.color_preview = tk.Canvas(preview_frame, width=24, height=24, bg=self.current_color, highlightthickness=1, highlightbackground=self.theme_colors["border"])
         self.color_preview.pack(side=tk.LEFT, padx=5)
         
         # 字体大小选择（文字工具）
-        self.font_size_frame = tk.Frame(tools_panel, bg="#f5f5f7")
+        self.font_size_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"])
         ttk.Label(self.font_size_frame, text="字体大小：", font=("微软雅黑", 10), style="Option.TLabel").pack(side=tk.TOP, anchor='w')
-        font_size_control = tk.Frame(self.font_size_frame, bg="#f5f5f7")
+        font_size_control = tk.Frame(self.font_size_frame, bg=self.theme_colors["panel_bg"])
         font_size_control.pack(side=tk.TOP, fill=tk.X, pady=(4, 0))
         
         # 字体大小调整按钮
@@ -148,16 +183,16 @@ class ScreenshotEditor(tk.Toplevel):
         increase_btn.pack(side=tk.LEFT)
         
         # 字体样式预览
-        self.font_preview = ttk.Label(self.font_size_frame, text="文字预览", font=("微软雅黑", self.font_size), foreground=self.current_color, background="#f5f5f7")
+        self.font_preview = ttk.Label(self.font_size_frame, text="文字预览", font=("微软雅黑", self.font_size), foreground=self.current_color, background=self.theme_colors["panel_bg"])
         self.font_preview.pack(side=tk.TOP, pady=(8, 0), anchor='w')
         
         self.font_size_frame.pack_forget()  # 初始隐藏
         
         # 马赛克大小选择
-        self.mosaic_size_frame = tk.Frame(tools_panel, bg="#f5f5f7")
+        self.mosaic_size_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"])
         ttk.Label(self.mosaic_size_frame, text="马赛克大小：", font=("微软雅黑", 10), style="Option.TLabel").pack(side=tk.TOP, anchor='w')
         
-        mosaic_value_frame = tk.Frame(self.mosaic_size_frame, bg="#f5f5f7")
+        mosaic_value_frame = tk.Frame(self.mosaic_size_frame, bg=self.theme_colors["panel_bg"])
         mosaic_value_frame.pack(side=tk.TOP, fill=tk.X, pady=(4, 0))
         
         self.mosaic_size_var = tk.IntVar(value=self.mosaic_size)
@@ -175,7 +210,7 @@ class ScreenshotEditor(tk.Toplevel):
         ttk.Label(mosaic_value_frame, text="px", style="Option.TLabel").pack(side=tk.LEFT, padx=(2, 0))
         
         # 带标签的滑块
-        scale_frame = tk.Frame(self.mosaic_size_frame, bg="#f5f5f7")
+        scale_frame = tk.Frame(self.mosaic_size_frame, bg=self.theme_colors["panel_bg"])
         scale_frame.pack(side=tk.TOP, fill=tk.X, pady=(8, 0))
         
         ttk.Label(scale_frame, text="小", style="Scale.TLabel").pack(side=tk.LEFT)
@@ -200,11 +235,11 @@ class ScreenshotEditor(tk.Toplevel):
         ttk.Label(tools_panel, text="操作", font=("微软雅黑", 11, "bold"), style="Section.TLabel").pack(side=tk.TOP, pady=(0, 8), padx=12, anchor='w')
         
         # 按钮容器
-        buttons_frame = tk.Frame(tools_panel, bg="#f5f5f7", padx=12)
+        buttons_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"], padx=12)
         buttons_frame.pack(side=tk.TOP, fill=tk.X)
         
         # 撤销和清除按钮，放在一行
-        actions_frame = tk.Frame(buttons_frame, bg="#f5f5f7")
+        actions_frame = tk.Frame(buttons_frame, bg=self.theme_colors["panel_bg"])
         actions_frame.pack(side=tk.TOP, fill=tk.X, pady=4)
         
         self.undo_btn = ttk.Button(
@@ -237,15 +272,15 @@ class ScreenshotEditor(tk.Toplevel):
         self.save_btn.pack(side=tk.TOP, fill=tk.X, pady=(8, 0))
         
         # 底部信息
-        bottom_frame = tk.Frame(tools_panel, bg="#f5f5f7")
+        bottom_frame = tk.Frame(tools_panel, bg=self.theme_colors["panel_bg"])
         bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
         ttk.Label(
             bottom_frame, 
             text="滚轮可缩放图片\n按Esc取消文本输入", 
             justify=tk.CENTER,
             font=("微软雅黑", 8),
-            foreground="#888888",
-            background="#f5f5f7"
+            foreground=self.theme_colors["secondary_text"],
+            background=self.theme_colors["panel_bg"]
         ).pack(side=tk.BOTTOM, fill=tk.X)
 
         # 创建顶部工具栏（只放退出和完成按钮）
@@ -269,9 +304,8 @@ class ScreenshotEditor(tk.Toplevel):
         main_frame = ttk.Frame(self, style="Canvas.TFrame")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 15))
         
-        # 内容区背景使用灰白棋盘格（表示透明背景）
-        canvas_bg = "#f9f9f9"
-        self.canvas = tk.Canvas(main_frame, width=image.width, height=image.height, bg=canvas_bg, cursor="cross", bd=0, highlightthickness=1, highlightbackground="#ddd")
+        # 内容区背景使用主题色
+        self.canvas = tk.Canvas(main_frame, width=image.width, height=image.height, bg=self.theme_colors["canvas_bg"], cursor="cross", bd=0, highlightthickness=1, highlightbackground=self.theme_colors["border"])
         self.canvas.pack(fill=tk.BOTH, expand=True)
         self.canvas_img = self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
         
@@ -302,101 +336,152 @@ class ScreenshotEditor(tk.Toplevel):
         # 设置窗口图标(如果有)
         # self.iconbitmap("path/to/icon.ico")
     
+    def get_theme_colors(self):
+        """获取当前主题颜色"""
+        if self.is_dark_mode:
+            return {
+                "background": DARK_COLOR_BACKGROUND,
+                "panel_bg": "#252540",  # 稍微亮一点的深色
+                "text": DARK_COLOR_NEUTRAL,
+                "secondary_text": "#aaaaaa",
+                "border": "#666666",  # 增强边框对比度
+                "canvas_bg": "#2a2a42",
+                "primary": DARK_COLOR_PRIMARY,
+                "button_bg": "#333350",
+                "button_active": "#444470",
+                "preview_bg": "#2d2d44"
+            }
+        else:
+            return {
+                "background": COLOR_BACKGROUND,
+                "panel_bg": "#f5f5f7",
+                "text": COLOR_NEUTRAL,
+                "secondary_text": "#888888",
+                "border": "#999999",  # 增强边框对比度
+                "canvas_bg": "#f9f9f9",
+                "primary": COLOR_PRIMARY,
+                "button_bg": "#f0f0f0",
+                "button_active": "#e0e0e0",
+                "preview_bg": "#f9f9f9"
+            }
+    
     def create_styles(self):
         """创建自定义样式"""
         style = ttk.Style()
         
         # 定义颜色
-        primary_color = "#3498db"
-        success_color = "#2ecc71"
-        danger_color = "#e74c3c"
-        warning_color = "#f39c12"
+        primary_color = self.theme_colors["primary"]
+        success_color = "#2ecc71" if not self.is_dark_mode else "#2ecc71"
+        danger_color = "#e74c3c" if not self.is_dark_mode else "#e74c3c"
+        warning_color = "#f39c12" if not self.is_dark_mode else "#f39c12"
         
         # 修改默认字体
-        default_font = ("微软雅黑", 10)
+        default_font = UI_FONT_NORMAL
         style.configure(".", font=default_font)
         
         # 节标题样式
         style.configure("Section.TLabel", 
                       font=("微软雅黑", 11, "bold"),
-                      foreground="#333333",
-                      background="#f5f5f7",
+                      foreground=self.theme_colors["text"],
+                      background=self.theme_colors["panel_bg"],
                       padding=4)
         
         # 选项标签样式
         style.configure("Option.TLabel", 
                       font=("微软雅黑", 10),
-                      foreground="#555555",
-                      background="#f5f5f7")
+                      foreground=self.theme_colors["text"],
+                      background=self.theme_colors["panel_bg"])
         
         # 比例尺标签
         style.configure("Scale.TLabel", 
                       font=("微软雅黑", 8),
-                      foreground="#888888",
-                      background="#f5f5f7")
+                      foreground=self.theme_colors["secondary_text"],
+                      background=self.theme_colors["panel_bg"])
         
         # 工具栏样式
-        style.configure("Toolbar.TFrame", background="#f0f0f0")
+        style.configure("Toolbar.TFrame", background=self.theme_colors["background"])
         style.configure("Toolbar.TLabel", 
-                      background="#f0f0f0",
-                      foreground="#333333")
+                      background=self.theme_colors["background"],
+                      foreground=self.theme_colors["text"])
         
         # 画布容器样式
         style.configure("Canvas.TFrame", 
-                      background="#f0f0f0",
+                      background=self.theme_colors["background"],
                       relief="flat")
         
         # 工具按钮样式
         style.configure("ToolButton.TRadiobutton",
                       font=("微软雅黑", 10),
-                      background="#f5f5f7",
+                      background=self.theme_colors["panel_bg"],
+                      foreground=self.theme_colors["text"],
                       padding=10)
         
+        active_bg = "#e8f0fe" if not self.is_dark_mode else "#444470"
+        active_fg = "#0078d7" if not self.is_dark_mode else "#ffffff"
+        
         style.map("ToolButton.TRadiobutton",
-                background=[('selected', '#e8f0fe'), ('active', '#f0f7ff')],
-                foreground=[('selected', '#0078d7'), ('active', '#0078d7')])
+                background=[('selected', active_bg), ('active', active_bg)],
+                foreground=[('selected', active_fg), ('active', active_fg)])
         
         # 主要动作按钮
         style.configure("Primary.TButton", 
                       font=("微软雅黑", 10, "bold"),
-                      background=primary_color)
+                      background=primary_color,
+                      foreground="white")
         
         style.map("Primary.TButton",
-                background=[('active', '#2980b9')])
+                background=[('active', primary_color)])
         
         # 成功动作按钮
         style.configure("Success.TButton", 
                       font=("微软雅黑", 10, "bold"),
-                      background=success_color)
+                      background=success_color,
+                      foreground="white")
         
         style.map("Success.TButton",
-                background=[('active', '#27ae60')])
+                background=[('active', success_color)])
         
         # 取消按钮
+        cancel_bg = "#f5f5f5" if not self.is_dark_mode else "#333350"
+        cancel_active = "#e0e0e0" if not self.is_dark_mode else "#444470"
+        
         style.configure("Cancel.TButton", 
                       font=("微软雅黑", 10),
-                      background="#f5f5f5")
+                      background=cancel_bg,
+                      foreground=self.theme_colors["text"])
         
         style.map("Cancel.TButton",
-                background=[('active', '#e0e0e0')])
+                background=[('active', cancel_active)])
         
         # 操作按钮
         style.configure("Action.TButton", 
                       font=("微软雅黑", 10),
-                      padding=6)
+                      padding=6,
+                      background=self.theme_colors["button_bg"],
+                      foreground=self.theme_colors["text"])
+        
+        style.map("Action.TButton",
+                background=[('active', self.theme_colors["button_active"])])
         
         # 小按钮
         style.configure("Small.TButton", 
                       font=("微软雅黑", 9),
-                      padding=3)
+                      padding=3,
+                      background=self.theme_colors["button_bg"],
+                      foreground=self.theme_colors["text"])
+        
+        style.map("Small.TButton",
+                background=[('active', self.theme_colors["button_active"])])
         
         # 圆形按钮
         style.configure("Round.TButton", 
                       font=("微软雅黑", 9, "bold"),
-                      padding=0)
+                      padding=0,
+                      background=self.theme_colors["button_bg"],
+                      foreground=self.theme_colors["text"])
         
-        # 工具的Frame样式
-        style.configure("Tool.TFrame", background="#f5f5f7")
+        style.map("Round.TButton",
+                background=[('active', self.theme_colors["button_active"])])
     
     def create_tooltips(self):
         """为按钮和组件创建工具提示"""
@@ -508,7 +593,7 @@ class ScreenshotEditor(tk.Toplevel):
                 bd=1,
                 relief=tk.SOLID,
                 width=20,
-                bg="#ffffff"
+                bg="#ffffff" if not self.is_dark_mode else "#333333"
             )
             entry.insert(0, "")
             entry.bind('<Return>', lambda e: self.finish_text_input(e, img_x, img_y))
@@ -522,9 +607,11 @@ class ScreenshotEditor(tk.Toplevel):
         self.rect_start = (img_x, img_y)
         c0, c1 = self.image_to_canvas_coords(img_x, img_y)
         if self.current_tool == 'rect':
-            self.rect_id = self.canvas.create_rectangle(c0, c1, c0, c1, outline=self.current_color, width=3, tags='preview', activeoutline='', activefill='')
+            # 创建更粗的矩形轮廓，提高可见度
+            self.rect_id = self.canvas.create_rectangle(c0, c1, c0, c1, outline=self.current_color, width=4, tags='preview', activeoutline='', activefill='')
         elif self.current_tool == 'arrow':
-            self.rect_id = self.canvas.create_line(c0, c1, c0, c1, fill=self.current_color, width=3, tags='preview', activefill='')
+            # 创建更粗的箭头线条，提高可见度
+            self.rect_id = self.canvas.create_line(c0, c1, c0, c1, fill=self.current_color, width=4, tags='preview', activefill='')
         elif self.current_tool == 'mosaic':
             self.is_mosaic_drawing = True
             self.last_mosaic_point = (img_x, img_y)
@@ -567,10 +654,9 @@ class ScreenshotEditor(tk.Toplevel):
                 self.rect_start = None
                 self.rect_id = None
                 return
-            x0, x1 = min(x1, x2), max(x1, x2)
-            y0, y1 = min(y1, y2), max(y1, y2)
-            self.draw.rectangle([x0, y0, x1, y1], outline=self.current_color, width=3)
-            self.rects.append(('rect', (x0, y0, x1, y1), self.current_color, None))
+            # 使用优化的矩形绘制方法
+            self.draw_rectangle(x1, y1, x2, y2, self.current_color)
+            self.rects.append(('rect', (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)), self.current_color, None))
         elif self.current_tool == 'arrow':
             self.draw_arrow(x1, y1, x2, y2, self.current_color)
             self.rects.append(('arrow', (x1, y1, x2, y2), self.current_color, None))
@@ -631,7 +717,9 @@ class ScreenshotEditor(tk.Toplevel):
             for item in self.rects:
                 tool_type, coords, color, text = item
                 if tool_type == 'rect':
-                    self.draw.rectangle(coords, outline=color, width=3)
+                    # 使用优化的矩形绘制方法
+                    x0, y0, x1, y1 = coords
+                    self.draw_rectangle(x0, y0, x1, y1, color)
                 elif tool_type == 'arrow':
                     self.draw_arrow(*coords, color)
                 elif tool_type == 'text':
@@ -645,6 +733,10 @@ class ScreenshotEditor(tk.Toplevel):
                     self.draw.text(coords, text, fill=color, font=font)
                 elif tool_type == 'mosaic':
                     self.apply_mosaic(*coords)
+                elif tool_type == 'mosaic_smear':
+                    # 对于涂抹类型的马赛克，需要重新加载原图，因为无法精确撤销
+                    pass  # 由于已重新开始绘制，不需要额外处理
+            
             self.update_canvas_image()
             
             # 如果没有操作了，禁用撤销和清除按钮
@@ -670,36 +762,50 @@ class ScreenshotEditor(tk.Toplevel):
             self.attributes('-topmost', False)
     
     def update_canvas_image(self):
+        """更新画布上的图像并重绘标注"""
+        # 提高图像清晰度
         self.tk_image = ImageTk.PhotoImage(self.image)
         self.canvas.itemconfig(self.canvas_img, image=self.tk_image)
+        
         # 先清空所有preview对象，防止重复
         for item in self.canvas.find_withtag('preview'):
             self.canvas.delete(item)
+            
         self.redraw_all_annotations()
+        
         # 缩放后重绘马赛克提示圈
         if self.current_tool == 'mosaic' and hasattr(self, '_last_cursor_pos'):
             self.draw_mosaic_cursor(*self._last_cursor_pos)
     
     def redraw_all_annotations(self):
+        """重绘所有标注，优化线条粗细和颜色对比度"""
         # 清空所有临时预览
         for item in self.canvas.find_withtag('preview'):
             self.canvas.delete(item)
+            
+        # 确定线宽
+        line_width = 4  # 增加线宽以提高可见度
+            
         for item in self.rects:
             tool_type, coords, color, text = item
             if tool_type == 'rect':
                 x0, y0, x1, y1 = coords
                 c0, c1 = self.image_to_canvas_coords(x0, y0)
                 c2, c3 = self.image_to_canvas_coords(x1, y1)
-                self.canvas.create_rectangle(c0, c1, c2, c3, outline=color, width=3, tags='preview', activeoutline='', activefill='')
+                # 增加线宽以提高可见度
+                self.canvas.create_rectangle(c0, c1, c2, c3, outline=color, width=line_width, tags='preview', activeoutline='', activefill='')
             elif tool_type == 'arrow':
                 x0, y0, x1, y1 = coords
                 c0, c1 = self.image_to_canvas_coords(x0, y0)
                 c2, c3 = self.image_to_canvas_coords(x1, y1)
-                self.canvas.create_line(c0, c1, c2, c3, fill=color, width=3, tags='preview', activefill='')
+                # 增加线宽以提高可见度
+                self.canvas.create_line(c0, c1, c2, c3, fill=color, width=line_width, tags='preview', activefill='')
             elif tool_type == 'text':
                 x, y = coords
                 c0, c1 = self.image_to_canvas_coords(x, y)
-                self.canvas.create_text(c0, c1, text=text, fill=color, font=("微软雅黑", self.font_size), tags='preview')
+                # 增大字体以提高可读性
+                font_size = max(self.font_size, 16)
+                self.canvas.create_text(c0, c1, text=text, fill=color, font=("微软雅黑", font_size, "bold"), tags='preview')
             # 马赛克等其他类型可按需回显
     
     def save_image(self):
@@ -845,14 +951,22 @@ class ScreenshotEditor(tk.Toplevel):
         x4 = x2 - arrow_length * math.cos(angle - arrow_angle)
         y4 = y2 - arrow_length * math.sin(angle - arrow_angle)
         
-        # 绘制箭头线
-        self.draw.line([x1, y1, x2, y2], fill=color, width=3)
+        # 特殊处理白色标注，添加黑色边框辅助
+        if color.upper() == '#FFFFFF':
+            # 先绘制黑色线条
+            self.draw.line([x1, y1, x2, y2], fill='#000000', width=6)
+            self.draw.line([x2, y2, x3, y3], fill='#000000', width=6)
+            self.draw.line([x2, y2, x4, y4], fill='#000000', width=6)
+            self.draw.line([x3, y3, x4, y4], fill='#000000', width=6)
+        
+        # 绘制箭头线 - 增加线宽以提高可见度
+        self.draw.line([x1, y1, x2, y2], fill=color, width=4)
         # 绘制箭头
-        self.draw.line([x2, y2, x3, y3], fill=color, width=3)
-        self.draw.line([x2, y2, x4, y4], fill=color, width=3)
+        self.draw.line([x2, y2, x3, y3], fill=color, width=4)
+        self.draw.line([x2, y2, x4, y4], fill=color, width=4)
         
         # 确保箭头不会被覆盖
-        self.draw.line([x3, y3, x4, y4], fill=color, width=3)
+        self.draw.line([x3, y3, x4, y4], fill=color, width=4)
     
     def apply_mosaic(self, x1, y1, x2, y2):
         """应用马赛克效果"""
@@ -896,4 +1010,51 @@ class ScreenshotEditor(tk.Toplevel):
             img_offset_x, img_offset_y = 0, 0
         canvas_x = img_x * self.zoom_scale + img_offset_x
         canvas_y = img_y * self.zoom_scale + img_offset_y
-        return int(canvas_x), int(canvas_y) 
+        return int(canvas_x), int(canvas_y)
+
+    def draw_rectangle(self, x0, y0, x1, y1, color):
+        """绘制矩形，提高对比度和可见度"""
+        # 确保坐标正确排序
+        x0, x1 = min(x0, x1), max(x0, x1)
+        y0, y1 = min(y0, y1), max(y0, y1)
+        
+        # 增加线宽以提高可见度
+        line_width = 4
+        
+        # 特殊处理白色标注，添加黑色边框辅助
+        if color.upper() == '#FFFFFF':
+            # 先绘制黑色外边框
+            outer_border = 1  # 外边框宽度
+            self.draw.rectangle([x0-outer_border, y0-outer_border, x1+outer_border, y1+outer_border], outline='#000000', width=line_width)
+        
+        # 绘制更粗的矩形边框
+        self.draw.rectangle([x0, y0, x1, y1], outline=color, width=line_width)
+        
+        # 如果是表格区域（较大矩形），添加淡色填充以增强可见度
+        if abs(x1 - x0) > 100 and abs(y1 - y0) > 100:
+            # 创建半透明填充色
+            fill_color = self.get_highlight_color(color)
+            # 绘制内部填充（稍微缩小以不覆盖边框）
+            inner_x0, inner_y0 = x0 + line_width, y0 + line_width
+            inner_x1, inner_y1 = x1 - line_width, y1 - line_width
+            # 使用alpha通道创建半透明填充
+            overlay = Image.new('RGBA', self.image.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            overlay_draw.rectangle([inner_x0, inner_y0, inner_x1, inner_y1], fill=fill_color)
+            
+            # 将overlay合并到原图
+            if self.image.mode != 'RGBA':
+                self.image = self.image.convert('RGBA')
+            self.image = Image.alpha_composite(self.image, overlay)
+            self.draw = ImageDraw.Draw(self.image)
+    
+    def get_highlight_color(self, color):
+        """根据线条颜色获取适合的半透明填充色"""
+        # 将HEX颜色转换为RGB
+        if color.startswith('#'):
+            r = int(color[1:3], 16)
+            g = int(color[3:5], 16)
+            b = int(color[5:7], 16)
+            # 创建半透明版本 (r,g,b,alpha)，alpha为60表示透明度约75%
+            return (r, g, b, 60)
+        return (255, 255, 255, 40)  # 默认为半透明白色 

@@ -15,6 +15,8 @@ from src.config import (
     UI_FONT_BOLD, UI_FONT_NORMAL, UI_FONT_TITLE, UI_FONT_LARGE, UI_FONT_SMALL,
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, 
     COLOR_NEUTRAL, COLOR_BACKGROUND, COLOR_PREVIEW_BG,
+    DARK_COLOR_PRIMARY, DARK_COLOR_SUCCESS, DARK_COLOR_WARNING, DARK_COLOR_DANGER,
+    DARK_COLOR_NEUTRAL, DARK_COLOR_BACKGROUND, DARK_COLOR_PREVIEW_BG,
     DEFAULT_REMINDER_TIME, REMINDER_MESSAGE, REMINDER_SOUND_ENABLED,
     INTERVAL_REMINDER_MINUTES, INTERVAL_REMINDER_MESSAGE
 )
@@ -22,6 +24,7 @@ from src.utils.screenshot import take_fullscreen_screenshot, resize_image_for_pr
 from src.utils.time_utils import get_current_time_str, parse_time_string, calculate_next_reminder_time, time_until_next_reminder, format_time_delta, calculate_next_interval_reminder
 from src.gui.records_view import RecordsView
 from src.gui.editor import ScreenshotEditor  # 添加编辑器导入
+from src.utils.theme_manager import default_theme_manager
 
 
 class ActivityTrackerApp:
@@ -39,7 +42,18 @@ class ActivityTrackerApp:
         self.root.title(APP_NAME)
         self.root.geometry(APP_WINDOW_SIZE)
         self.root.resizable(True, True)
-        self.root.configure(background=COLOR_BACKGROUND)
+        
+        # 从主题管理器获取主题状态
+        self.theme_manager = default_theme_manager
+        
+        # 获取主题状态
+        self.is_dark_mode = self.theme_manager.is_dark_mode
+        self.current_colors = self.theme_manager.theme_colors
+        
+        # 在主题管理器中注册主窗口
+        self.theme_manager.register_window(self)
+        
+        self.root.configure(background=self.current_colors["background"])
         
         # 加载图标
         self.load_icons()
@@ -110,6 +124,7 @@ class ActivityTrackerApp:
                 "save": "save.png",
                 "clear": "clear.png",
                 "query": "query.png",
+                "theme": "theme.png",  # 添加主题切换图标
             }
             
             for icon_name, file_name in icon_files.items():
@@ -137,30 +152,35 @@ class ActivityTrackerApp:
         # 配置基本样式
         self.style.configure(".", 
                            font=UI_FONT_NORMAL,
-                           background=COLOR_BACKGROUND)
+                           background=self.current_colors["background"])
+        
+        # 配置TFrame样式
+        self.style.configure("TFrame", 
+                           background=self.current_colors["background"])
         
         # 标题标签
         self.style.configure("Title.TLabel", 
                            font=UI_FONT_TITLE,
-                           foreground=COLOR_NEUTRAL,
-                           background=COLOR_BACKGROUND,
+                           foreground=self.current_colors["neutral"],
+                           background=self.current_colors["background"],
                            padding=10)
         
         # 普通标签
         self.style.configure("TLabel", 
                            font=UI_FONT_NORMAL,
-                           background=COLOR_BACKGROUND)
+                           foreground=self.current_colors["neutral"],
+                           background=self.current_colors["background"])
         
         # 小号标签
         self.style.configure("Small.TLabel", 
                            font=UI_FONT_SMALL,
-                           foreground="#888",
-                           background=COLOR_BACKGROUND)
+                           foreground="#888" if not self.is_dark_mode else "#aaa",
+                           background=self.current_colors["background"])
         
         # 信息标签
         self.style.configure("Info.TLabel", 
-                           foreground=COLOR_PRIMARY,
-                           background=COLOR_BACKGROUND)
+                           foreground=self.current_colors["primary"],
+                           background=self.current_colors["background"])
         
         # 主要按钮
         self.style.configure("Primary.TButton", 
@@ -168,7 +188,7 @@ class ActivityTrackerApp:
                            padding=8)
         
         self.style.map("Primary.TButton",
-                     background=[('active', COLOR_PRIMARY), ('!disabled', COLOR_PRIMARY)],
+                     background=[('active', self.current_colors["primary"]), ('!disabled', self.current_colors["primary"])],
                      foreground=[('active', 'white'), ('!disabled', 'white')])
         
         # 成功按钮
@@ -177,7 +197,7 @@ class ActivityTrackerApp:
                            padding=8)
         
         self.style.map("Success.TButton",
-                     background=[('active', COLOR_SUCCESS), ('!disabled', COLOR_SUCCESS)],
+                     background=[('active', self.current_colors["success"]), ('!disabled', self.current_colors["success"])],
                      foreground=[('active', 'white'), ('!disabled', 'white')])
         
         # 警告按钮
@@ -186,7 +206,7 @@ class ActivityTrackerApp:
                            padding=8)
         
         self.style.map("Warning.TButton",
-                     background=[('active', COLOR_WARNING), ('!disabled', COLOR_WARNING)],
+                     background=[('active', self.current_colors["warning"]), ('!disabled', self.current_colors["warning"])],
                      foreground=[('active', 'white'), ('!disabled', 'white')])
         
         # 普通按钮
@@ -197,26 +217,54 @@ class ActivityTrackerApp:
         # 标签框
         self.style.configure("TLabelframe", 
                            font=UI_FONT_BOLD,
-                           background=COLOR_BACKGROUND)
+                           background=self.current_colors["background"])
         
         self.style.configure("TLabelframe.Label", 
                            font=UI_FONT_LARGE,
-                           background=COLOR_BACKGROUND,
-                           foreground=COLOR_NEUTRAL)
+                           background=self.current_colors["background"],
+                           foreground=self.current_colors["neutral"])
         
         # 分隔线
         self.style.configure("TSeparator", 
-                           background="#ddd")
+                           background="#ddd" if not self.is_dark_mode else "#444")
         
         # 单选按钮
         self.style.configure("TRadiobutton", 
                            font=UI_FONT_NORMAL,
-                           background=COLOR_BACKGROUND)
+                           background=self.current_colors["background"],
+                           foreground=self.current_colors["neutral"])
         
         # 修改Entry样式
+        self.style.configure('TEntry', 
+                           padding=5,
+                           fieldbackground='white' if not self.is_dark_mode else '#333',
+                           foreground='black' if not self.is_dark_mode else 'white')
+        
+        # 深色Entry样式
+        self.style.configure('Dark.TEntry', 
+                           padding=5,
+                           fieldbackground='#333',
+                           foreground='white')
+                           
         self.style.map('TEntry', 
-                     fieldbackground=[('disabled', '#f6f6f6')])
-    
+                     fieldbackground=[('disabled', '#f6f6f6' if not self.is_dark_mode else '#444')],
+                     foreground=[('disabled', '#666' if not self.is_dark_mode else '#aaa')])
+        
+        # 更新弹出菜单样式
+        self.root.option_add('*TCombobox*Listbox.background', self.current_colors["background"])
+        self.root.option_add('*TCombobox*Listbox.foreground', self.current_colors["neutral"])
+        self.root.option_add('*Menu.background', self.current_colors["background"])
+        self.root.option_add('*Menu.foreground', self.current_colors["neutral"])
+        
+        # 创建预览区域风格
+        self.style.configure("Preview.TLabel", 
+                             background=self.current_colors["preview_bg"],
+                             foreground="#888" if not self.is_dark_mode else "#aaa")
+        
+        # 更新一下预览标签
+        if hasattr(self, 'preview_label'):
+            self.preview_label.configure(style="Preview.TLabel")
+            
     def _create_widgets(self):
         """
         创建UI组件
@@ -233,7 +281,7 @@ class ActivityTrackerApp:
         title_frame = ttk.Frame(self.header_frame)
         title_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        ttk.Label(title_frame, text="工作记录系统", style="Title.TLabel").pack(side=tk.LEFT)
+        ttk.Label(title_frame, text="留痕", style="Title.TLabel").pack(side=tk.LEFT)
         
         # 时间显示放右侧
         self.time_frame = ttk.Frame(self.header_frame)
@@ -242,6 +290,16 @@ class ActivityTrackerApp:
         ttk.Label(self.time_frame, text="当前时间:", font=UI_FONT_BOLD).pack(side=tk.LEFT)
         self.time_label = ttk.Label(self.time_frame, text="", style="Info.TLabel")
         self.time_label.pack(side=tk.LEFT, padx=10)
+        
+        # 添加主题切换按钮
+        self.theme_btn = ttk.Button(
+            self.time_frame,
+            text="切换主题",
+            command=self.toggle_theme
+        )
+        if hasattr(self, 'icons') and 'theme' in self.icons:
+            self.theme_btn.config(image=self.icons['theme'], compound=tk.LEFT)
+        self.theme_btn.pack(side=tk.LEFT, padx=(15, 0))
         
         # 添加分隔线
         ttk.Separator(self.main_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 15))
@@ -287,6 +345,84 @@ class ActivityTrackerApp:
             style="Small.TLabel"
         )
         self.hotkey_label.pack(side=tk.RIGHT)
+    
+    def toggle_theme(self):
+        """切换深色/浅色主题"""
+        # 使用主题管理器切换主题
+        self.is_dark_mode = self.theme_manager.toggle_theme()
+        
+        # 更新主题颜色变量
+        self.current_colors = self.theme_manager.theme_colors
+        
+        # 重新设置样式
+        self._setup_styles()
+        
+        # 更新按钮文本和预览区域背景色
+        if self.is_dark_mode:
+            self.theme_btn.config(text="浅色主题")
+            self.status_label.config(text="已切换到深色主题")
+            if hasattr(self, 'preview_label'):
+                self.preview_label.configure(background=self.current_colors["preview_bg"])
+        else:
+            self.theme_btn.config(text="深色主题")
+            self.status_label.config(text="已切换到浅色主题")
+            if hasattr(self, 'preview_label'):
+                self.preview_label.configure(background=self.current_colors["preview_bg"])
+        
+        # 强制更新所有控件的颜色
+        self.update_all_widgets(self.root)
+        
+        # 更新子窗口的主题
+        self._update_child_windows()
+        
+        # 更新应用UI
+        self.root.update_idletasks()
+    
+    def update_all_widgets(self, parent):
+        """递归更新所有控件的颜色
+        
+        Args:
+            parent: 父控件
+        """
+        # 更新当前控件
+        try:
+            if isinstance(parent, (ttk.Frame, ttk.LabelFrame)):
+                pass  # TTK控件由样式控制
+            elif isinstance(parent, tk.Widget) and 'background' in parent.config():
+                parent.configure(background=self.current_colors["background"])
+                if 'foreground' in parent.config():
+                    parent.configure(foreground=self.current_colors["neutral"] if self.is_dark_mode else "#333333")
+        except Exception as e:
+            print(f"更新控件颜色失败: {e}")
+        
+        # 递归更新子控件
+        for child in parent.winfo_children():
+            self.update_all_widgets(child)
+    
+    def _update_child_windows(self):
+        """更新所有子窗口的主题设置"""
+        # 首先尝试更新直接引用的子窗口
+        if hasattr(self, 'records_view') and self.records_view is not None:
+            if hasattr(self.records_view, '_update_theme'):
+                self.records_view._update_theme(self.is_dark_mode)
+        
+        # 遍历所有子窗口
+        for window in self.root.winfo_children():
+            if isinstance(window, tk.Toplevel):
+                # 检查窗口是否有_records_view属性
+                if hasattr(window, '_records_view'):
+                    records_view = window._records_view
+                    if hasattr(records_view, '_update_theme'):
+                        records_view._update_theme(self.is_dark_mode)
+                # 或者窗口本身是否有更新主题的方法
+                elif hasattr(window, '_update_theme'):
+                    window._update_theme(self.is_dark_mode)
+                # 否则直接更新背景色
+                elif 'bg' in window.config():
+                    try:
+                        window.configure(bg=self.current_colors["background"])
+                    except:
+                        pass
     
     def _create_task_frame(self):
         """
@@ -408,13 +544,13 @@ class ActivityTrackerApp:
             borderwidth=1, 
             relief="solid", 
             anchor="center", 
-            background=COLOR_PREVIEW_BG
+            style="Preview.TLabel"
         )
         self.preview_label.pack(fill=tk.BOTH, expand=True)
         
         # 添加空白预览提示
         self.empty_preview_text = tk.StringVar(value="等待截图...\n按下 F2 或 Ctrl+Shift+Z 快捷键，或点击'截图'按钮")
-        self.preview_label.config(text=self.empty_preview_text.get(), foreground="#888")
+        self.preview_label.config(text=self.empty_preview_text.get())
     
     def _create_button_frame(self):
         """
@@ -548,7 +684,7 @@ class ActivityTrackerApp:
             # 如果截图成功
             if self.current_screenshot:
                 # 打开编辑器让用户进行标注
-                editor = ScreenshotEditor(self.root, self.current_screenshot)
+                editor = ScreenshotEditor(self.root, self.current_screenshot, self.is_dark_mode)
                 edited_image = editor.get_result()
                 
                 if edited_image:  # 如果用户完成了编辑
@@ -651,9 +787,15 @@ class ActivityTrackerApp:
         打开记录查询界面
         """
         self.status_label.config(text="打开记录查询...")
-        RecordsView(self.root)
+        
+        # 创建记录查询视图
+        records_view = RecordsView(self)
+        
+        # 将records_view实例存储在self中，以便于后续访问
+        self.records_view = records_view
+        
         self.status_label.config(text="就绪")
-
+    
     def on_resize(self, event):
         """
         窗口大小改变时调整预览图像
@@ -923,3 +1065,28 @@ class ActivityTrackerApp:
         # 更新状态显示
         self.update_interval_status()
         self.status_label.config(text="间隔提醒已重置，计时器已重新开始")
+
+    def _update_theme(self, is_dark_mode):
+        """处理来自主题管理器的主题更新通知
+        
+        Args:
+            is_dark_mode: 是否为深色主题
+        """
+        # 更新主题状态
+        self.is_dark_mode = is_dark_mode
+        self.current_colors = self.theme_manager.theme_colors
+        
+        # 更新UI样式
+        self._setup_styles()
+        
+        # 更新主窗口背景色
+        self.root.configure(background=self.current_colors["background"])
+        
+        # 更新主题按钮文字
+        if self.is_dark_mode:
+            self.theme_btn.config(text="浅色主题")
+        else:
+            self.theme_btn.config(text="深色主题")
+        
+        # 更新所有子窗口（通过直接引用而非主题管理器）
+        self._update_child_windows()
