@@ -13,6 +13,7 @@ from typing import Tuple, Optional
 
 from src.config import SCREENSHOT_DIR, FILENAME_TIME_FORMAT
 from src.utils.data_manager import DataManager
+from src.utils.config_manager import default_config_manager
 
 # 创建数据管理器实例
 data_manager = DataManager()
@@ -259,20 +260,73 @@ def save_screenshot(image, task_name, notes="") -> Tuple[bool, str]:
     if not task_name.strip():
         return False, "请输入项目/事务名称"
     
-    # 生成文件名：时间_项目名称.png
-    timestamp = datetime.datetime.now().strftime(FILENAME_TIME_FORMAT)
-    # 替换文件名中不允许的字符
-    safe_task = "".join([c if c.isalnum() or c in [' ', '_', '-'] else '_' for c in task_name])
-    filename = f"{timestamp}_{safe_task}.png"
-    filepath = os.path.join(SCREENSHOT_DIR, filename)
-    
-    # 保存截图
-    image.save(filepath)
-    
-    # 添加记录到数据管理器
-    data_manager.add_record(task_name, filepath, notes)
-    
-    return True, filepath
+    try:
+        # 从配置管理器获取保存路径
+        config_manager = default_config_manager
+        use_custom_path = config_manager.get_value("files", "use_custom_path", False)
+        
+        if use_custom_path:
+            # 使用用户自定义的保存路径
+            save_dir = config_manager.get_value("files", "screenshot_save_path", SCREENSHOT_DIR)
+            # 检查路径是否为空或无效
+            if not save_dir or not isinstance(save_dir, str):
+                print(f"自定义路径无效，使用默认路径: {SCREENSHOT_DIR}")
+                save_dir = SCREENSHOT_DIR
+        else:
+            # 使用默认的保存路径
+            save_dir = SCREENSHOT_DIR
+        
+        # 标准化路径
+        save_dir = os.path.normpath(save_dir)
+        print(f"使用保存路径: {save_dir}")
+        
+        # 确保保存目录存在
+        if not os.path.exists(save_dir):
+            try:
+                os.makedirs(save_dir, exist_ok=True)
+                print(f"已创建保存目录: {save_dir}")
+            except Exception as e:
+                print(f"创建保存目录失败: {e}")
+                # 如果创建失败，尝试使用默认目录
+                save_dir = os.path.join(os.path.expanduser("~"), "留痕软件_截图")
+                print(f"尝试使用备选目录: {save_dir}")
+                os.makedirs(save_dir, exist_ok=True)
+        
+        # 生成文件名：时间_项目名称.png
+        timestamp = datetime.datetime.now().strftime(FILENAME_TIME_FORMAT)
+        # 替换文件名中不允许的字符
+        safe_task = "".join([c if c.isalnum() or c in [' ', '_', '-'] else '_' for c in task_name])
+        filename = f"{timestamp}_{safe_task}.png"
+        filepath = os.path.join(save_dir, filename)
+        
+        # 确保文件名不超过系统限制（通常Windows为260个字符）
+        if len(filepath) > 250:
+            # 截断项目名称
+            filepath = os.path.join(save_dir, f"{timestamp}_截图.png")
+        
+        # 获取截图质量
+        quality = config_manager.get_value("ui", "screenshot_quality", 90)
+        
+        # 保存截图
+        print(f"保存截图到: {filepath}，质量: {quality}")
+        image.save(filepath, quality=quality)
+        
+        # 添加记录到数据管理器
+        data_manager.add_record(task_name, filepath, notes)
+        
+        return True, filepath
+    except Exception as e:
+        error_msg = f"保存截图时发生错误: {str(e)}"
+        print(error_msg)
+        # 尝试保存到用户目录作为最后的备选
+        try:
+            backup_dir = os.path.join(os.path.expanduser("~"), "留痕软件_截图")
+            os.makedirs(backup_dir, exist_ok=True)
+            backup_path = os.path.join(backup_dir, f"{datetime.datetime.now().strftime(FILENAME_TIME_FORMAT)}_备份.png")
+            image.save(backup_path)
+            return False, f"{error_msg}\n已创建备份: {backup_path}"
+        except Exception as backup_error:
+            return False, f"{error_msg}\n备份也失败: {str(backup_error)}"
 
 
 def load_image_from_path(image_path) -> Optional[Image.Image]:

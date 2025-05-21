@@ -25,6 +25,8 @@ from src.utils.time_utils import get_current_time_str, parse_time_string, calcul
 from src.gui.records_view import RecordsView
 from src.gui.editor import ScreenshotEditor  # 添加编辑器导入
 from src.utils.theme_manager import default_theme_manager
+from src.utils.config_manager import default_config_manager
+from src.gui.config_window import ConfigWindow
 
 
 class ActivityTrackerApp:
@@ -647,6 +649,19 @@ class ActivityTrackerApp:
             self.query_btn.config(image=self.icons['query'], compound=tk.LEFT)
             
         self.query_btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        
+        # 添加配置按钮区域
+        config_buttons = ttk.Frame(button_group)
+        config_buttons.pack(fill=tk.X, pady=(10, 0))
+        
+        # 添加配置设置按钮
+        self.config_btn = ttk.Button(
+            config_buttons, 
+            text="应用设置",
+            command=self.open_config_window
+        )
+        
+        self.config_btn.pack(fill=tk.X, expand=True)
     
     def update_time(self):
         """
@@ -1090,3 +1105,30 @@ class ActivityTrackerApp:
         
         # 更新所有子窗口（通过直接引用而非主题管理器）
         self._update_child_windows()
+
+    def open_config_window(self):
+        """打开配置窗口"""
+        self.status_label.config(text="打开应用设置...")
+        ConfigWindow(self.root, callback=self.apply_config)
+        
+    def apply_config(self, config_values=None):
+        """应用新配置
+        
+        Args:
+            config_values: 新的配置值字典
+        """
+        # 更新状态显示
+        self.status_label.config(text="应用新配置...")
+        
+        # 使用配置管理器应用配置
+        config_manager = default_config_manager
+        
+        # 应用提醒设置
+        if hasattr(self, 'reminder_entry') and config_values:
+            self.reminder_entry.delete(0, 'end')
+            self.reminder_entry.insert(0, config_values["reminder"]["default_time"])
+            
+        # 应用其他可以立即生效的设置
+        # 例如：启用/禁用声音提醒，更改间隔提醒时间等
+        
+        self.status_label.config(text="配置已更新")

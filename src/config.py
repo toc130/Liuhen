@@ -3,6 +3,11 @@
 """
 
 import os
+import sys
+
+# 检测是否为PyInstaller打包环境
+def is_pyinstaller():
+    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 
 # 应用程序基本配置
 APP_NAME = "留痕软件"
@@ -10,10 +15,29 @@ APP_VERSION = "1.0.0"
 APP_WINDOW_SIZE = "1024x768"  # 更大的默认窗口尺寸
 
 # 路径配置
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-SCREENSHOT_DIR = os.path.join(DATA_DIR, "screenshots")
-LOG_DIR = os.path.join(BASE_DIR, "logs")
+if is_pyinstaller():
+    # 打包环境路径配置
+    BASE_DIR = os.path.dirname(sys.executable)
+    TEMP_DIR = os.path.join(os.path.expanduser("~"), ".liuhen")
+    
+    # 创建用户数据目录
+    if not os.path.exists(TEMP_DIR):
+        os.makedirs(TEMP_DIR)
+    
+    # 数据和日志目录设置在用户目录下
+    DATA_DIR = os.path.join(TEMP_DIR, "data")
+    SCREENSHOT_DIR = os.path.join(DATA_DIR, "screenshots")
+    LOG_DIR = os.path.join(TEMP_DIR, "logs")
+    
+    # 资源目录在打包文件内
+    ASSETS_DIR = os.path.join(sys._MEIPASS, "assets")
+else:
+    # 开发环境路径配置
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+    SCREENSHOT_DIR = os.path.join(DATA_DIR, "screenshots")
+    LOG_DIR = os.path.join(BASE_DIR, "logs")
+    ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 # 确保目录存在
 def ensure_dirs():
@@ -21,6 +45,7 @@ def ensure_dirs():
     for directory in [DATA_DIR, SCREENSHOT_DIR, LOG_DIR]:
         if not os.path.exists(directory):
             os.makedirs(directory)
+            print(f"创建目录: {directory}")
 
 # 浅色主题颜色配置
 COLOR_PRIMARY = "#3498db"     # 主要颜色
@@ -69,3 +94,10 @@ TABLE_COLUMNS = [
     {"id": "task_name", "text": "项目/事务", "width": 200},
     {"id": "timestamp", "text": "时间", "width": 150},
 ]
+
+# 打印配置信息
+print(f"应用名称: {APP_NAME} v{APP_VERSION}")
+print(f"数据目录: {DATA_DIR}")
+print(f"日志目录: {LOG_DIR}")
+print(f"截图目录: {SCREENSHOT_DIR}")
+print(f"资源目录: {ASSETS_DIR}")

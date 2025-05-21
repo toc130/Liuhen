@@ -10,8 +10,21 @@ import os
 import traceback
 from PIL import Image
 
+# 检测是否为PyInstaller打包环境
+def is_pyinstaller():
+    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+
+# 获取正确的应用根目录
+def get_app_root():
+    if is_pyinstaller():
+        return sys._MEIPASS
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
+
 # 确保src目录在Python路径中
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+app_root = get_app_root()
+sys.path.insert(0, app_root)
+print(f"应用根目录: {app_root}")
 print(f"Python路径: {sys.path}")
 
 def main():
@@ -22,6 +35,10 @@ def main():
         # 导入必要的模块
         from src.config import ensure_dirs, APP_NAME, APP_VERSION
         print("成功导入config模块")
+        
+        # 导入配置管理器，预加载用户配置
+        from src.utils.config_manager import default_config_manager
+        print("加载用户配置完成")
         
         from src.gui.app import ActivityTrackerApp
         print("成功导入app模块")
@@ -37,13 +54,42 @@ def main():
         
         # 设置窗口图标和标题
         root.title(f"{APP_NAME} v{APP_VERSION}")
-        root.state('zoomed')  # 启动时最大化
+        
+        # 设置窗口图标 - 处理打包后路径
+        icon_path = os.path.join(app_root, "assets", "icons", "app_icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                root.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"设置图标失败: {e}")
+        
+        # 获取用户界面配置
+        startup_maximized = default_config_manager.get_value("ui", "startup_maximized", True)
+        
+        # 适应不同的屏幕尺寸和分辨率
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        
+        if startup_maximized and screen_width > 1366 and screen_height > 768:
+            # 大屏幕且配置为最大化时，最大化窗口
+            root.state('zoomed')
+        else:
+            # 较小屏幕或不需要最大化时，适当调整大小
+            window_width = min(1024, screen_width - 100)
+            window_height = min(768, screen_height - 100)
+            root.geometry(f"{window_width}x{window_height}+{(screen_width-window_width)//2}+{(screen_height-window_height)//2}")
+            
         print("Tkinter初始化完成")
         
         print("创建应用实例...")
         # 初始化应用
         app = ActivityTrackerApp(root)
-        app.mosaic_size = 40  # 马赛克块大小，默认40
+        
+        # 应用用户配置
+        default_config_manager.apply_config(app)
+        
+        # 设置默认马赛克块大小
+        app.mosaic_size = 40
         print("应用实例创建完成")
         
         print("启动主循环...")
